@@ -4,10 +4,11 @@ from PyQt4 import QtGui, QtCore
 
 class Panikoton(QtGui.QMainWindow):
     # player initial values
-    pos_x = 0
-    pos_y = 0
-    player_h = 50
-    player_w = 50
+    pos_x = 230
+    pos_y = 230
+    player_h = 40
+    player_w = 40
+    is_centered = True
 
     # move initial values
     move_size = 10
@@ -15,6 +16,12 @@ class Panikoton(QtGui.QMainWindow):
     # window initial values
     window_w = 500
     window_h = 500
+
+    # stage initial values
+    background = './assets/stage1_bg.png'
+    background_pos_x = 0
+    stage_w = 1000  # width of the bg
+    stage_h = 500   # height of the bg
 
     def __init__(self):
         super(Panikoton, self).__init__()
@@ -31,11 +38,18 @@ class Panikoton(QtGui.QMainWindow):
         self.drawPlayer()
 
     def drawPlayer(self):
-        painter = QtGui.QPainter()
-        painter.begin(self)
+        painter = QtGui.QPainter(self)
+
+        pixmap = QtGui.QPixmap(self.background)
+        painter.drawPixmap(self.background_pos_x, 0, pixmap)
+
         painter.setBrush(QtGui.QColor(255, 0, 0))
         painter.drawRect(self.pos_x, self.pos_y, self.player_w, self.player_h)
-        painter.end()
+
+        # is player centered?
+        self.is_centered = False
+        if 225 == self.pos_x:
+            self.is_centered = True
 
     def keyPressEvent(self, e):
         key = e.key()
@@ -57,36 +71,67 @@ class Panikoton(QtGui.QMainWindow):
 
             self.move_occurred()
 
+        # update stage state (dispatches paintEvent)
+        self.update()
+
     def move_occurred(self):
-        print(self.pos_x, self.pos_y)
+        print(self.pos_x, self.pos_y, 'bg_x:', self.background_pos_x)
 
     def player_move_right(self):
         if self.pos_x + self.player_w >= self.window_w:
             return
 
-        self.pos_x += self.move_size
-        self.update()
+        # if player is centered then:
+        #   if background_pos_x
+
+        # if True == self.is_centered:
+            #  its end of the stage
+        if self.window_w - self.stage_w == self.background_pos_x:
+            self.pos_x += self.move_size
+        else:
+            self.background_pos_x -= self.move_size
+        # else:
+        #     #  its end of the stage
+        #     if self.window_w - self.stage_w == self.background_pos_x:
+        #         self.pos_x += self.move_size
+        #     else:
+
 
     def player_move_left(self):
         if self.pos_x <= 0:
             return
 
-        self.pos_x -= self.move_size
-        self.update()
+        # its left end of the stage
+        if 0 == self.background_pos_x:
+            self.pos_x -= self.move_size
+        else:
+            self.background_pos_x += self.move_size
+
+
 
     def player_move_up(self):
         if self.pos_y <= 0:
             return
 
         self.pos_y -= self.move_size
-        self.update()
 
     def player_move_down(self):
         if self.pos_y + self.player_h >= self.window_h:
             return
 
         self.pos_y += self.move_size
-        self.update()
+
+    def background_move_right(self):
+        if self.stage_w - self.window_w == self.background_pos_x:
+            return
+
+        self.background_pos_x += self.move_size
+
+    def background_move_left(self):
+        if 0 == self.pos_x:
+            return
+
+        self.background_pos_x -= self.move_size
 
 
 def main():
