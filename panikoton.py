@@ -2,55 +2,48 @@ import sys
 from PyQt4 import QtGui, QtCore
 
 
+# Panikoton class with the game ;)
 class Panikoton(QtGui.QMainWindow):
     # player initial values
-    pos_x = 230
-    pos_y = 230
-    player_h = 40
-    player_w = 40
-    is_centered = True
+    player = None
 
-    # move initial values
-    move_size = 10
+    # stage initial values
+    stage = None
 
     # window initial values
     window_w = 500
     window_h = 500
 
-    # stage initial values
-    background = './assets/stage1_bg.png'
-    background_pos_x = 0
-    stage_w = 1000  # width of the bg
-    stage_h = 500   # height of the bg
-
     def __init__(self):
         super(Panikoton, self).__init__()
 
-        self.initUI()
+        # initialize player and stage
+        self.player = Player
+        self.stage = Stage
 
-    def initUI(self):
+        self.init_ui()
+
+    # prepare and display main window
+    def init_ui(self):
         self.setFixedWidth(self.window_w)
         self.setFixedHeight(self.window_h)
 
         self.show()
 
+    # event dispatched after `self.update()` call
     def paintEvent(self, QPaintEvent):
-        self.drawPlayer()
+        self.draw_scene()
 
-    def drawPlayer(self):
+    # draws scene: stage + player
+    def draw_scene(self):
         painter = QtGui.QPainter(self)
 
-        pixmap = QtGui.QPixmap(self.background)
-        painter.drawPixmap(self.background_pos_x, 0, pixmap)
+        self.stage.draw(painter)
+        self.player.draw(painter)
 
-        painter.setBrush(QtGui.QColor(255, 0, 0))
-        painter.drawRect(self.pos_x, self.pos_y, self.player_w, self.player_h)
+        self.player.after_move()
 
-        # is player centered?
-        self.is_centered = False
-        if 225 == self.pos_x:
-            self.is_centered = True
-
+    # player controls
     def keyPressEvent(self, e):
         key = e.key()
 
@@ -74,11 +67,13 @@ class Panikoton(QtGui.QMainWindow):
         # update stage state (dispatches paintEvent)
         self.update()
 
+    # debug
     def move_occurred(self):
-        print(self.pos_x, self.pos_y, 'bg_x:', self.background_pos_x)
+        print(self.player.x, self.player.y, 'bg_x:', self.stage.background_x)
 
+    # moves player right
     def player_move_right(self):
-        if self.pos_x + self.player_w >= self.window_w:
+        if self.player.x + self.player.w >= self.window_w:
             return
 
         # if player is centered then:
@@ -86,52 +81,100 @@ class Panikoton(QtGui.QMainWindow):
 
         # if True == self.is_centered:
             #  its end of the stage
-        if self.window_w - self.stage_w == self.background_pos_x:
-            self.pos_x += self.move_size
+        if self.window_w - self.stage.w == self.stage.background_x:
+            self.player.move_right()
         else:
-            self.background_pos_x -= self.move_size
+            self.stage.move_right()
         # else:
         #     #  its end of the stage
         #     if self.window_w - self.stage_w == self.background_pos_x:
         #         self.pos_x += self.move_size
         #     else:
 
-
+    # moves player left
     def player_move_left(self):
-        if self.pos_x <= 0:
+        if self.player.x <= 0:
             return
 
         # its left end of the stage
-        if 0 == self.background_pos_x:
-            self.pos_x -= self.move_size
+        if 0 == self.stage.background_x:
+            self.player.move_left()
         else:
-            self.background_pos_x += self.move_size
+            self.stage.move_left()
 
-
-
+    # moves player up (should be changed by jump)
     def player_move_up(self):
-        if self.pos_y <= 0:
+        if self.player.y <= 0:
             return
 
-        self.pos_y -= self.move_size
+        self.player.y -= self.player.move_size
 
+    # moves player down (to remove)
     def player_move_down(self):
-        if self.pos_y + self.player_h >= self.window_h:
+        if self.player.y + self.player.h >= self.window_h:
             return
 
-        self.pos_y += self.move_size
+        self.player.y += self.player.move_size
 
-    def background_move_right(self):
-        if self.stage_w - self.window_w == self.background_pos_x:
-            return
 
-        self.background_pos_x += self.move_size
+# Player class with player attributes and controls
+class Player(object):
+    x = 230
+    y = 230
+    h = 40
+    w = 40
+    is_centered = True
 
-    def background_move_left(self):
-        if 0 == self.pos_x:
-            return
+    move_size = 10
 
-        self.background_pos_x -= self.move_size
+    def __init__(self):
+        self.move_size = 10
+
+    @classmethod
+    def move_right(cls):
+        cls.x += cls.move_size
+
+    @classmethod
+    def move_left(cls):
+        cls.x -= cls.move_size
+
+    @classmethod
+    def after_move(cls):
+        # is player centered?
+        cls.is_centered = False
+        if 225 == cls.x:
+            cls.is_centered = True
+
+    @classmethod
+    def draw(cls, painter):
+        painter.setBrush(QtGui.QColor(255, 0, 0))
+        painter.drawRect(cls.x, cls.y, cls.w, cls.h)
+
+
+# Stage class with stage attributes and controls
+class Stage(object):
+    background = './assets/stage1_bg.png'
+    background_x = 0
+    w = 1000  # width of the bg
+    h = 500   # height of the bg
+
+    move_size = 10
+
+    def __init__(self):
+        self.move_size = 10
+
+    @classmethod
+    def move_right(cls):
+        cls.background_x -= cls.move_size
+
+    @classmethod
+    def move_left(cls):
+        cls.background_x += cls.move_size
+
+    @classmethod
+    def draw(cls, painter):
+        pixmap = QtGui.QPixmap(cls.background)
+        painter.drawPixmap(cls.background_x, 0, pixmap)
 
 
 def main():
