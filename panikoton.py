@@ -48,19 +48,11 @@ class Panikoton(QtGui.QMainWindow):
         key = e.key()
 
         if key == QtCore.Qt.Key_Left:
-            self.player_move_left()
+            self.player_move_backward()
 
             self.move_occurred()
         elif key == QtCore.Qt.Key_Right:
-            self.player_move_right()
-
-            self.move_occurred()
-        elif key == QtCore.Qt.Key_Up:
-            self.player_move_up()
-
-            self.move_occurred()
-        elif key == QtCore.Qt.Key_Down:
-            self.player_move_down()
+            self.player_move_forward()
 
             self.move_occurred()
 
@@ -71,50 +63,27 @@ class Panikoton(QtGui.QMainWindow):
     def move_occurred(self):
         print(self.player.x, self.player.y, 'bg_x:', self.stage.background_x)
 
-    # moves player right
-    def player_move_right(self):
-        if self.player.x + self.player.w >= self.window_w:
+    # moves player forward
+    def player_move_forward(self):
+        if self.player.can_move_forward():
             return
 
-        # if player is centered then:
-        #   if background_pos_x
-
-        # if True == self.is_centered:
-            #  its end of the stage
-        if self.window_w - self.stage.w == self.stage.background_x:
-            self.player.move_right()
-        else:
-            self.stage.move_right()
-        # else:
-        #     #  its end of the stage
-        #     if self.window_w - self.stage_w == self.background_pos_x:
-        #         self.pos_x += self.move_size
-        #     else:
-
-    # moves player left
-    def player_move_left(self):
-        if self.player.x <= 0:
+        if self.stage.is_right_end(self.window_w):
+            self.player.move_forward()
             return
 
-        # its left end of the stage
-        if 0 == self.stage.background_x:
-            self.player.move_left()
-        else:
-            self.stage.move_left()
-
-    # moves player up (should be changed by jump)
-    def player_move_up(self):
-        if self.player.y <= 0:
+        if self.player.is_centered:
+            self.stage.move_forward()
             return
 
-        self.player.y -= self.player.move_size
+        self.player.move_forward()
 
-    # moves player down (to remove)
-    def player_move_down(self):
-        if self.player.y + self.player.h >= self.window_h:
+    # moves player backward
+    def player_move_backward(self):
+        if self.player.can_move_backward():
             return
 
-        self.player.y += self.player.move_size
+        self.player.move_backward()
 
 
 # Player class with player attributes and controls
@@ -131,24 +100,36 @@ class Player(object):
         self.move_size = 10
 
     @classmethod
-    def move_right(cls):
+    def move_forward(cls):
         cls.x += cls.move_size
 
     @classmethod
-    def move_left(cls):
+    def move_backward(cls):
         cls.x -= cls.move_size
 
     @classmethod
     def after_move(cls):
         # is player centered?
         cls.is_centered = False
-        if 225 == cls.x:
+        if 230 == cls.x:
             cls.is_centered = True
 
     @classmethod
     def draw(cls, painter):
         painter.setBrush(QtGui.QColor(255, 0, 0))
         painter.drawRect(cls.x, cls.y, cls.w, cls.h)
+
+    @classmethod
+    def is_centered(cls):
+        return cls.is_centered
+
+    @classmethod
+    def can_move_forward(cls, window_w):
+        return cls.x + cls.w >= window_w
+
+    @classmethod
+    def can_move_backward(cls):
+        return cls.x <= 0
 
 
 # Stage class with stage attributes and controls
@@ -164,17 +145,21 @@ class Stage(object):
         self.move_size = 10
 
     @classmethod
-    def move_right(cls):
+    def move_forward(cls):
         cls.background_x -= cls.move_size
-
-    @classmethod
-    def move_left(cls):
-        cls.background_x += cls.move_size
 
     @classmethod
     def draw(cls, painter):
         pixmap = QtGui.QPixmap(cls.background)
         painter.drawPixmap(cls.background_x, 0, pixmap)
+
+    @classmethod
+    def is_right_end(cls, window_w):
+        return window_w - cls.w == cls.background_x
+
+    @classmethod
+    def is_left_end(cls):
+        return 0 == cls.background_x
 
 
 def main():
