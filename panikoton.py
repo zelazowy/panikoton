@@ -10,9 +10,13 @@ class Panikoton(QtGui.QMainWindow):
     # stage initial values
     stage = None
 
+    tick_action = None
+
     # window initial values
     window_w = 500
     window_h = 500
+
+    timer = None
 
     def __init__(self):
         super(Panikoton, self).__init__()
@@ -23,12 +27,30 @@ class Panikoton(QtGui.QMainWindow):
 
         self.init_ui()
 
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.tick)
+        self.timer.start(50)
+
     # prepare and display main window
     def init_ui(self):
         self.setFixedWidth(self.window_w)
         self.setFixedHeight(self.window_h)
 
         self.show()
+
+    def tick(self):
+        # todo: trzeba ogarnąć długie przytrzymanie klawisza, ewentualnie ogarnąć naciśnięcie 2 klawiszy na raz
+        if self.tick_action is None:
+            return
+
+        print(self.tick_action.__name__)
+        self.tick_action()
+        self.update()
+
+        if self.player.jump_started:
+            self.tick_action = self.player_jump
+        else:
+            self.tick_action = None
 
     # event dispatched after `self.update()` call
     def paintEvent(self, QPaintEvent):
@@ -48,16 +70,27 @@ class Panikoton(QtGui.QMainWindow):
         key = e.key()
 
         if key == QtCore.Qt.Key_Left:
-            self.player_move_backward()
+            self.tick_action = self.player_move_backward
 
             self.move_occurred()
-        elif key == QtCore.Qt.Key_Right:
-            self.player_move_forward()
+        if key == QtCore.Qt.Key_Right:
+            self.tick_action = self.player_move_forward
 
             self.move_occurred()
 
-        # update stage state (dispatches paintEvent)
-        self.update()
+        if key == QtCore.Qt.Key_Z:
+            self.tick_action = self.player_jump
+            self.move_occurred()
+
+    def keyReleaseEvent(self, e):
+        key = e.key()
+
+        if key == QtCore.Qt.Key_Left:
+            self.tick_action = None
+
+        if key == QtCore.Qt.Key_Right:
+            self.tick_action = None
+
 
     # debug
     def move_occurred(self):
@@ -65,7 +98,7 @@ class Panikoton(QtGui.QMainWindow):
 
     # moves player forward
     def player_move_forward(self):
-        if self.player.can_move_forward():
+        if self.player.can_move_forward(self.window_w):
             return
 
         if self.stage.is_right_end(self.window_w):
@@ -85,16 +118,26 @@ class Panikoton(QtGui.QMainWindow):
 
         self.player.move_backward()
 
+    def player_jump(self):
+        return self.player.jump()
+
 
 # Player class with player attributes and controls
 class Player(object):
+    JUMP_DIR_UP = -1
+    JUMP_DIR_DOWN = 1
+
     x = 230
-    y = 230
+    y = 460
     h = 40
     w = 40
     is_centered = True
 
     move_size = 10
+    jump_index = 0
+    jump_dir = JUMP_DIR_UP
+    jump_started = False
+    jump_run = [20, 15, 10, 5, 2, 0]
 
     def __init__(self):
         self.move_size = 10
@@ -131,13 +174,35 @@ class Player(object):
     def can_move_backward(cls):
         return cls.x <= 0
 
+    @classmethod
+    def jump(cls):
+        # todo: przerobić, jest sprasznie nieczytelnie
+        if not cls.jump_started:
+            cls.jump_started = True
+
+        cls.y += cls.jump_dir * cls.jump_run[cls.jump_index]
+
+        if cls.jump_index == len(cls.jump_run) - 1:
+            cls.jump_dir = cls.JUMP_DIR_DOWN
+        elif cls.jump_index == 0 and cls.JUMP_DIR_DOWN == cls.jump_dir:
+            cls.jump_dir = cls.JUMP_DIR_UP
+            cls.jump_started = False
+
+            return False
+
+        cls.jump_index -= cls.jump_dir
+
+        # print(z)
+
+        return cls.jump_started
+
 
 # Stage class with stage attributes and controls
 class Stage(object):
     background = './assets/stage1_bg.png'
     background_x = 0
     w = 1000  # width of the bg
-    h = 500   # height of the bg
+    h = 500  # height of the bg
 
     move_size = 10
 
@@ -163,7 +228,6 @@ class Stage(object):
 
 
 def main():
-
     app = QtGui.QApplication([])
     panikoton = Panikoton()
     sys.exit(app.exec_())
