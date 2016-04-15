@@ -4,6 +4,11 @@ from PyQt4 import QtGui, QtCore
 
 # Panikoton class with the game ;)
 class Panikoton(QtGui.QMainWindow):
+    TIMER_TICK = 100
+
+    KEY_PRESSED = True
+    KEY_NOT_PRESSED = False
+
     # player initial values
     player = None
 
@@ -18,8 +23,20 @@ class Panikoton(QtGui.QMainWindow):
 
     timer = None
 
+    # list contains available keys in the game and its press states
+    pressed_keys = {
+        QtCore.Qt.Key_Left: KEY_NOT_PRESSED,
+        QtCore.Qt.Key_Right: KEY_NOT_PRESSED,
+        QtCore.Qt.Key_Z: KEY_NOT_PRESSED,
+    }
+
+    key_actions = {}
+
     def __init__(self):
         super(Panikoton, self).__init__()
+
+        # initialize internal values
+        self.init_key_actions()
 
         # initialize player and stage
         self.player = Player
@@ -28,8 +45,8 @@ class Panikoton(QtGui.QMainWindow):
         self.init_ui()
 
         self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.tick)
-        self.timer.start(50)
+        self.timer.timeout.connect(self.key_action)
+        self.timer.start(self.TIMER_TICK)
 
     # prepare and display main window
     def init_ui(self):
@@ -38,19 +55,13 @@ class Panikoton(QtGui.QMainWindow):
 
         self.show()
 
-    def tick(self):
-        # todo: trzeba ogarnąć długie przytrzymanie klawisza, ewentualnie ogarnąć naciśnięcie 2 klawiszy na raz
-        if self.tick_action is None:
-            return
-
-        print(self.tick_action.__name__)
-        self.tick_action()
-        self.update()
-
-        if self.player.jump_started:
-            self.tick_action = self.player_jump
-        else:
-            self.tick_action = None
+    # initializes key actions
+    def init_key_actions(self):
+        self.key_actions = {
+            QtCore.Qt.Key_Left: self.player_move_backward,
+            QtCore.Qt.Key_Right: self.player_move_forward,
+            QtCore.Qt.Key_Z: self.player_jump,
+        }
 
     # event dispatched after `self.update()` call
     def paintEvent(self, QPaintEvent):
@@ -65,36 +76,39 @@ class Panikoton(QtGui.QMainWindow):
 
         self.player.after_move()
 
-    # player controls
+    # adds pressed key to the set
     def keyPressEvent(self, e):
         key = e.key()
 
-        if key == QtCore.Qt.Key_Left:
-            self.tick_action = self.player_move_backward
+        # sets state of the key to PRESSED
+        self.pressed_keys[key] = self.KEY_PRESSED
 
-            self.move_occurred()
-        if key == QtCore.Qt.Key_Right:
-            self.tick_action = self.player_move_forward
-
-            self.move_occurred()
-
-        if key == QtCore.Qt.Key_Z:
-            self.tick_action = self.player_jump
-            self.move_occurred()
-
+    # removes released key from the pressed_keys set
     def keyReleaseEvent(self, e):
         key = e.key()
 
-        if key == QtCore.Qt.Key_Left:
-            self.tick_action = None
+        # sets state of the key to NOT_PRESSED
+        self.pressed_keys[key] = self.KEY_NOT_PRESSED
 
-        if key == QtCore.Qt.Key_Right:
-            self.tick_action = None
+    # method called in every Timer tick
+    # calls methods for keys pressed at the moment
+    def key_action(self):
+        for key, is_pressed in self.pressed_keys.items():
+            if self.KEY_PRESSED == is_pressed:
+                action = self.key_actions[key]
+                action()
 
+        # if player is in jump "state" then continue it independent from current action
+        if self.player.jump_started:
+            self.player_jump()
+
+        self.update()
 
     # debug
     def move_occurred(self):
-        print(self.player.x, self.player.y, 'bg_x:', self.stage.background_x)
+        pass
+        # print(self.player.x, self.player.y, 'bg_x:', self.stage.background_x)
+        # print(self.pressed_keys)
 
     # moves player forward
     def player_move_forward(self):
