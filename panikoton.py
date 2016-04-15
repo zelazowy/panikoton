@@ -141,11 +141,13 @@ class Player(object):
     JUMP_DIR_UP = -1
     JUMP_DIR_DOWN = 1
 
-    x = 230
-    y = 460
-    h = 40
-    w = 40
+    x = 190
+    y = 420
+    h = 80
+    w = 80
     is_centered = True
+
+    img = './assets/player/cat0.png'
 
     move_size = 10
     jump_index = 0
@@ -173,8 +175,11 @@ class Player(object):
 
     @classmethod
     def draw(cls, painter):
-        painter.setBrush(QtGui.QColor(255, 0, 0))
-        painter.drawRect(cls.x, cls.y, cls.w, cls.h)
+        pixmap = QtGui.QPixmap(cls.img)
+        painter.drawPixmap(cls.x, cls.y, pixmap)
+
+        # painter.setBrush(QtGui.QColor(255, 0, 0))
+        # painter.drawRect(cls.x, cls.y, cls.w, cls.h)
 
     @classmethod
     def is_centered(cls):
