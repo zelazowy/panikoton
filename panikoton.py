@@ -138,22 +138,20 @@ class Panikoton(QtGui.QMainWindow):
 
 # Player class with player attributes and controls
 class Player(object):
-    JUMP_DIR_UP = -1
-    JUMP_DIR_DOWN = 1
-
     x = 190
     y = 420
     h = 80
     w = 80
     is_centered = True
 
-    img = './assets/player/cat0.png'
+    img_pattern = './assets/player/cat{0}.png'
+    player_img = './assets/player/cat0.png'
+    player_imgs = [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8]
 
     move_size = 10
     jump_index = 0
-    jump_dir = JUMP_DIR_UP
     jump_started = False
-    jump_run = [20, 15, 10, 5, 2, 0]
+    jump_run = [-20, -15, -10, -5, -2, 0, 2, 5, 10, 15, 20]
 
     def __init__(self):
         self.move_size = 10
@@ -175,11 +173,8 @@ class Player(object):
 
     @classmethod
     def draw(cls, painter):
-        pixmap = QtGui.QPixmap(cls.img)
+        pixmap = QtGui.QPixmap(cls.player_img)
         painter.drawPixmap(cls.x, cls.y, pixmap)
-
-        # painter.setBrush(QtGui.QColor(255, 0, 0))
-        # painter.drawRect(cls.x, cls.y, cls.w, cls.h)
 
     @classmethod
     def is_centered(cls):
@@ -195,25 +190,27 @@ class Player(object):
 
     @classmethod
     def jump(cls):
-        # todo: przerobić, jest sprasznie nieczytelnie
         if not cls.jump_started:
             cls.jump_started = True
 
-        cls.y += cls.jump_dir * cls.jump_run[cls.jump_index]
+        # change player position
+        cls.y += cls.jump_run[cls.jump_index]
 
+        # if move ends reset values
         if cls.jump_index == len(cls.jump_run) - 1:
-            cls.jump_dir = cls.JUMP_DIR_DOWN
-        elif cls.jump_index == 0 and cls.JUMP_DIR_DOWN == cls.jump_dir:
-            cls.jump_dir = cls.JUMP_DIR_UP
             cls.jump_started = False
+            cls.jump_index = 0
+        else:
+            cls.jump_index += 1
 
-            return False
-
-        cls.jump_index -= cls.jump_dir
-
-        # print(z)
+        # update player image
+        cls.update_player_img(cls.jump_index)
 
         return cls.jump_started
+
+    @classmethod
+    def update_player_img(cls, index):
+        cls.player_img = cls.img_pattern.replace("{0}", str(cls.player_imgs[index]))
 
 
 # Stage class with stage attributes and controls
