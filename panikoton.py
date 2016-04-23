@@ -4,7 +4,7 @@ from PyQt4 import QtGui, QtCore
 
 # Panikoton class with the game ;)
 class Panikoton(QtGui.QMainWindow):
-    TIMER_TICK = 100
+    TIMER_TICK = 80
 
     KEY_PRESSED = True
     KEY_NOT_PRESSED = False
@@ -67,6 +67,11 @@ class Panikoton(QtGui.QMainWindow):
     def paintEvent(self, QPaintEvent):
         self.draw_scene()
 
+        if self.is_level_completed():
+            self.level_completed()
+        elif self.is_game_over():
+            self.game_over()
+
     # draws scene: stage + player
     def draw_scene(self):
         painter = QtGui.QPainter(self)
@@ -112,7 +117,7 @@ class Panikoton(QtGui.QMainWindow):
 
     # moves player forward
     def player_move_forward(self):
-        if self.player.can_move_forward(self.window_w):
+        if not self.player.can_move_forward(self.window_w):
             return
 
         if self.stage.is_right_end(self.window_w):
@@ -135,11 +140,33 @@ class Panikoton(QtGui.QMainWindow):
     def player_jump(self):
         return self.player.jump()
 
+    def is_level_completed(self):
+        return not self.player.can_move_forward(self.window_w)
+
+    def level_completed(self):
+        painter = QtGui.QPainter(self)
+        painter.setPen(QtGui.QColor(0, 255, 0))
+        painter.setFont(QtGui.QFont("Arial", 20))
+        painter.drawText(0, 0, self.window_w, self.window_h, QtCore.Qt.AlignCenter, "You win!")
+        self.timer.stop()
+        self.update()
+
+    def is_game_over(self):
+        return self.stage.is_obstacle_hit(self.player.x + self.player.w, self.player.x, self.player.y + self.player.h)
+
+    def game_over(self):
+        painter = QtGui.QPainter(self)
+        painter.setPen(QtGui.QColor(255, 0, 0))
+        painter.setFont(QtGui.QFont("Arial", 20))
+        painter.drawText(0, 0, self.window_w, self.window_h, QtCore.Qt.AlignCenter, "Game over!")
+        self.timer.stop()
+        self.update()
+
 
 # Player class with player attributes and controls
 class Player(object):
     x = 190
-    y = 420
+    y = 370
     h = 80
     w = 80
     is_centered = True
@@ -148,7 +175,7 @@ class Player(object):
     player_img = './assets/player/cat0.png'
     player_imgs = [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8]
 
-    move_size = 10
+    move_size = 20
     jump_index = 0
     jump_started = False
     jump_run = [-20, -15, -10, -5, -2, 0, 2, 5, 10, 15, 20]
@@ -182,7 +209,7 @@ class Player(object):
 
     @classmethod
     def can_move_forward(cls, window_w):
-        return cls.x + cls.w >= window_w
+        return cls.x + cls.w < window_w
 
     @classmethod
     def can_move_backward(cls):
@@ -220,7 +247,11 @@ class Stage(object):
     w = 1000  # width of the bg
     h = 500  # height of the bg
 
-    move_size = 10
+    obstacle_x = 410
+    obstacle_w = 10
+    obstacle_h = 20
+
+    move_size = 20
 
     def __init__(self):
         self.move_size = 10
@@ -234,6 +265,14 @@ class Stage(object):
         pixmap = QtGui.QPixmap(cls.background)
         painter.drawPixmap(cls.background_x, 0, pixmap)
 
+        # ground drawing
+        painter.setBrush(QtGui.QColor(255, 0, 0))
+        painter.drawRect(0, cls.h - 50, cls.w, 50)
+
+        # obstacle drawing
+        painter.setBrush(QtGui.QColor(0, 0, 255))
+        painter.drawRect(cls.obstacle_x + cls.background_x, cls.h - 50, cls.obstacle_w, -cls.obstacle_h)
+
     @classmethod
     def is_right_end(cls, window_w):
         return window_w - cls.w == cls.background_x
@@ -241,6 +280,10 @@ class Stage(object):
     @classmethod
     def is_left_end(cls):
         return 0 == cls.background_x
+
+    @classmethod
+    def is_obstacle_hit(cls, player_x1, player_x2, player_y):
+        return player_x2 <= cls.obstacle_x + cls.background_x <= player_x1 and player_y >= cls.h - 50 - cls.obstacle_h
 
 
 def main():
