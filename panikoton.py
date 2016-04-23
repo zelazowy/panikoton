@@ -67,6 +67,9 @@ class Panikoton(QtGui.QMainWindow):
     def paintEvent(self, QPaintEvent):
         self.draw_scene()
 
+        if self.is_level_completed():
+            self.level_completed()
+
     # draws scene: stage + player
     def draw_scene(self):
         painter = QtGui.QPainter(self)
@@ -102,6 +105,10 @@ class Panikoton(QtGui.QMainWindow):
         if self.player.jump_started:
             self.player_jump()
 
+        self.player_is_on_the_ground()
+
+        # print(self.stage.current_ground, self.player.x)
+
         self.update()
 
     # debug
@@ -112,7 +119,7 @@ class Panikoton(QtGui.QMainWindow):
 
     # moves player forward
     def player_move_forward(self):
-        if self.player.can_move_forward(self.window_w):
+        if not self.player.can_move_forward(self.window_w):
             return
 
         if self.stage.is_right_end(self.window_w):
@@ -135,11 +142,36 @@ class Panikoton(QtGui.QMainWindow):
     def player_jump(self):
         return self.player.jump()
 
+    def is_level_completed(self):
+        return not self.player.can_move_forward(self.window_w)
+
+    def level_completed(self):
+        painter = QtGui.QPainter(self)
+        painter.setPen(QtGui.QColor(0, 255, 0))
+        painter.setFont(QtGui.QFont("Arial", 20))
+        painter.drawText(0, 0, self.window_w, self.window_h, QtCore.Qt.AlignCenter, "You win!")
+        self.timer.stop()
+        self.update()
+
+    def player_is_on_the_ground(self):
+        # check ground level under player
+        # if ground level is below player y then fall
+        ground_level = self.stage.get_stage_ground(self.player.x)
+        if self.player.y + 80 <= ground_level and not self.player.jump_started:
+            self.player.fall(ground_level - 80)
+
+        print(self.player.y, ground_level)
+
+        pass
+
 
 # Player class with player attributes and controls
 class Player(object):
+    FALL_INDEX = 10
+
     x = 190
-    y = 420
+    # y = 375
+    y = 200
     h = 80
     w = 80
     is_centered = True
@@ -171,6 +203,8 @@ class Player(object):
         if 230 == cls.x:
             cls.is_centered = True
 
+        # check if player is on the ground
+
     @classmethod
     def draw(cls, painter):
         pixmap = QtGui.QPixmap(cls.player_img)
@@ -182,7 +216,7 @@ class Player(object):
 
     @classmethod
     def can_move_forward(cls, window_w):
-        return cls.x + cls.w >= window_w
+        return cls.x + cls.w < window_w
 
     @classmethod
     def can_move_backward(cls):
@@ -209,6 +243,14 @@ class Player(object):
         return cls.jump_started
 
     @classmethod
+    def fall(cls, max):
+        print(max, cls.y)
+        cls.y += 10
+        # simulate falling by performing half of jump
+        # cls.jump_index = cls.FALL_INDEX
+        # cls.jump_started = True
+
+    @classmethod
     def update_player_img(cls, index):
         cls.player_img = cls.img_pattern.replace("{0}", str(cls.player_imgs[index]))
 
@@ -219,6 +261,11 @@ class Stage(object):
     background_x = 0
     w = 1000  # width of the bg
     h = 500  # height of the bg
+
+    ground = [[0, 300], [400, 1000]]
+    ground_h = 45
+
+    current_ground = []
 
     move_size = 10
 
@@ -234,6 +281,15 @@ class Stage(object):
         pixmap = QtGui.QPixmap(cls.background)
         painter.drawPixmap(cls.background_x, 0, pixmap)
 
+        # rysowanie podłoża
+        painter.setBrush(QtGui.QColor(255, 0, 0))
+
+        cls.current_ground = []
+        for part in cls.ground:
+            cls.current_ground.append([part[0] + cls.background_x, part[1] + cls.background_x])
+            # we must adjust x value of the ground by background_x which adjust while player moving
+            painter.drawRect(part[0] + cls.background_x, cls.h - cls.ground_h, part[1], cls.ground_h)
+
     @classmethod
     def is_right_end(cls, window_w):
         return window_w - cls.w == cls.background_x
@@ -241,6 +297,16 @@ class Stage(object):
     @classmethod
     def is_left_end(cls):
         return 0 == cls.background_x
+
+    @classmethod
+    def get_stage_ground(cls, x):
+        for part in cls.current_ground:
+            print(part, x)
+            if part[0] <= x <= part[1]:
+                return 450
+
+        return 500
+        pass
 
 
 def main():
