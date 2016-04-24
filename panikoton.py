@@ -152,6 +152,7 @@ class Panikoton(QtGui.QMainWindow):
         self.update()
 
     def is_game_over(self):
+
         return self.stage.is_obstacle_hit(self.player.x + self.player.w, self.player.x, self.player.y + self.player.h)
 
     def game_over(self):
@@ -165,10 +166,10 @@ class Panikoton(QtGui.QMainWindow):
 
 # Player class with player attributes and controls
 class Player(object):
-    x = 190
-    y = 370
     h = 80
     w = 80
+    x = 50
+    y = 450 - h  # stage_h - player h
     is_centered = True
 
     img_pattern = './assets/player/cat{0}.png'
@@ -179,9 +180,6 @@ class Player(object):
     jump_index = 0
     jump_started = False
     jump_run = [-20, -15, -10, -5, -2, 0, 2, 5, 10, 15, 20]
-
-    def __init__(self):
-        self.move_size = 10
 
     @classmethod
     def move_forward(cls):
@@ -243,13 +241,20 @@ class Player(object):
 # Stage class with stage attributes and controls
 class Stage(object):
     background = './assets/stage1_bg.png'
-    background_x = 0
+    x = 0
+    y = 0
     w = 1000  # width of the bg
     h = 500  # height of the bg
 
-    obstacle_x = 410
+    ground_w = w
+    ground_h = 50
+    ground_x = x
+    ground_y = h - ground_h  # h of the stage minus ground h
+
     obstacle_w = 10
     obstacle_h = 20
+    obstacle_x = 410
+    obstacle_y = h - ground_h - obstacle_h
 
     move_size = 20
 
@@ -258,32 +263,40 @@ class Stage(object):
 
     @classmethod
     def move_forward(cls):
-        cls.background_x -= cls.move_size
+        # adjust background and all elements on the stage
+        cls.x -= cls.move_size
+        cls.obstacle_x -= cls.move_size
 
     @classmethod
     def draw(cls, painter):
         pixmap = QtGui.QPixmap(cls.background)
-        painter.drawPixmap(cls.background_x, 0, pixmap)
+        painter.drawPixmap(cls.x, cls.y, pixmap)
 
         # ground drawing
         painter.setBrush(QtGui.QColor(255, 0, 0))
-        painter.drawRect(0, cls.h - 50, cls.w, 50)
+        painter.drawRect(cls.ground_x, cls.ground_y, cls.ground_w, cls.ground_h)
 
         # obstacle drawing
         painter.setBrush(QtGui.QColor(0, 0, 255))
-        painter.drawRect(cls.obstacle_x + cls.background_x, cls.h - 50, cls.obstacle_w, -cls.obstacle_h)
+        painter.drawRect(cls.obstacle_x, cls.obstacle_y, cls.obstacle_w, cls.obstacle_h)
 
     @classmethod
     def is_right_end(cls, window_w):
-        return window_w - cls.w == cls.background_x
+        return window_w - cls.w == cls.x
 
     @classmethod
     def is_left_end(cls):
-        return 0 == cls.background_x
+        return 0 == cls.x
 
     @classmethod
     def is_obstacle_hit(cls, player_x1, player_x2, player_y):
-        return player_x2 <= cls.obstacle_x + cls.background_x <= player_x1 and player_y >= cls.h - 50 - cls.obstacle_h
+        # is possibly hit from above?
+        hit_from_above = player_y >= cls.obstacle_y
+
+        if not hit_from_above:
+            return
+
+        return player_x1 >= cls.obstacle_x >= player_x2
 
 
 def main():
