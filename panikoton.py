@@ -112,7 +112,7 @@ class Panikoton(QtGui.QMainWindow):
     # debug
     def move_occurred(self):
         pass
-        # print(self.player.x, self.player.y, 'bg_x:', self.stage.background_x)
+        # print(self.player.x, self.player.y, "bg_x:", self.stage.background_x)
         # print(self.pressed_keys)
 
     # moves player forward
@@ -152,8 +152,16 @@ class Panikoton(QtGui.QMainWindow):
         self.update()
 
     def is_game_over(self):
+        return self.stage.is_enemy_hit(self.player.x + self.player.w, self.player.x, self.player.y + self.player.h)
 
+    def is_obstacle_hit(self):
         return self.stage.is_obstacle_hit(self.player.x + self.player.w, self.player.x, self.player.y + self.player.h)
+
+    def obstacle_hit(self):
+        self.player.y = self.stage.obstacle_y
+
+    def obstacle_not_hit(self):
+        self.player.y = 450
 
     def game_over(self):
         painter = QtGui.QPainter(self)
@@ -172,8 +180,8 @@ class Player(object):
     y = 450 - h  # stage_h - player h
     is_centered = True
 
-    img_pattern = './assets/player/cat{0}.png'
-    player_img = './assets/player/cat0.png'
+    img_pattern = "./assets/player/cat{0}.png"
+    player_img = "./assets/player/cat0.png"
     player_imgs = [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8]
 
     move_size = 20
@@ -240,7 +248,7 @@ class Player(object):
 
 # Stage class with stage attributes and controls
 class Stage(object):
-    background = './assets/stage1_bg.png'
+    background = "./assets/stage1_bg.png"
     x = 0
     y = 0
     w = 1000  # width of the bg
@@ -250,11 +258,20 @@ class Stage(object):
     ground_h = 50
     ground_x = x
     ground_y = h - ground_h  # h of the stage minus ground h
+    ground_pattern_w = 50
+    ground_pattern = "./assets/platform-bg.png"
 
-    obstacle_w = 10
-    obstacle_h = 20
-    obstacle_x = 410
+    enemy_w = 25
+    enemy_h = 25
+    enemy_x = 410
+    enemy_y = h - ground_h - enemy_h
+    enemy_pattern = "./assets/enemy.png"
+
+    obstacle_w = 50
+    obstacle_h = 50
+    obstacle_x = 200
     obstacle_y = h - ground_h - obstacle_h
+    obstacle_pattern = "./assets/obstacle.png"
 
     move_size = 20
 
@@ -265,6 +282,8 @@ class Stage(object):
     def move_forward(cls):
         # adjust background and all elements on the stage
         cls.x -= cls.move_size
+        cls.enemy_x -= cls.move_size
+        cls.ground_x -= cls.move_size
         cls.obstacle_x -= cls.move_size
 
     @classmethod
@@ -274,11 +293,17 @@ class Stage(object):
 
         # ground drawing
         painter.setBrush(QtGui.QColor(255, 0, 0))
-        painter.drawRect(cls.ground_x, cls.ground_y, cls.ground_w, cls.ground_h)
+        bg_pixmap = QtGui.QPixmap(cls.ground_pattern)
+        for i in range(0, int(cls.ground_w / cls.ground_pattern_w)):
+            painter.drawPixmap(cls.ground_x + i * 50, cls.ground_y, bg_pixmap)
+
+        # enemy drawing
+        enemy_pixmap = QtGui.QPixmap(cls.enemy_pattern)
+        painter.drawPixmap(cls.enemy_x, cls.enemy_y, enemy_pixmap)
 
         # obstacle drawing
-        painter.setBrush(QtGui.QColor(0, 0, 255))
-        painter.drawRect(cls.obstacle_x, cls.obstacle_y, cls.obstacle_w, cls.obstacle_h)
+        # obstacle_pixmap = QtGui.QPixmap(cls.obstacle_pattern)
+        # painter.drawPixmap(cls.obstacle_x, cls.obstacle_y, obstacle_pixmap)
 
     @classmethod
     def is_right_end(cls, window_w):
@@ -289,9 +314,19 @@ class Stage(object):
         return 0 == cls.x
 
     @classmethod
+    def is_enemy_hit(cls, player_x1, player_x2, player_y):
+        # is possibly hit from above?
+        hit_from_above = player_y >= cls.enemy_y
+
+        if not hit_from_above:
+            return
+
+        return player_x1 >= cls.enemy_x >= player_x2
+
+    @classmethod
     def is_obstacle_hit(cls, player_x1, player_x2, player_y):
         # is possibly hit from above?
-        hit_from_above = player_y >= cls.obstacle_y
+        hit_from_above = player_y >= cls.enemy_y
 
         if not hit_from_above:
             return
@@ -305,5 +340,5 @@ def main():
     sys.exit(app.exec_())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
