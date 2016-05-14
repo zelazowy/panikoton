@@ -154,15 +154,6 @@ class Panikoton(QtGui.QMainWindow):
     def is_game_over(self):
         return self.stage.is_enemy_hit(self.player.x + self.player.w, self.player.x, self.player.y + self.player.h)
 
-    def is_obstacle_hit(self):
-        return self.stage.is_obstacle_hit(self.player.x + self.player.w, self.player.x, self.player.y + self.player.h)
-
-    def obstacle_hit(self):
-        self.player.y = self.stage.obstacle_y
-
-    def obstacle_not_hit(self):
-        self.player.y = 450
-
     def game_over(self):
         painter = QtGui.QPainter(self)
         painter.setPen(QtGui.QColor(255, 0, 0))
@@ -267,12 +258,6 @@ class Stage(object):
     enemy_y = h - ground_h - enemy_h
     enemy_pattern = "./assets/enemy.png"
 
-    obstacle_w = 50
-    obstacle_h = 50
-    obstacle_x = 200
-    obstacle_y = h - ground_h - obstacle_h
-    obstacle_pattern = "./assets/obstacle.png"
-
     move_size = 20
 
     def __init__(self):
@@ -284,7 +269,6 @@ class Stage(object):
         cls.x -= cls.move_size
         cls.enemy_x -= cls.move_size
         cls.ground_x -= cls.move_size
-        cls.obstacle_x -= cls.move_size
 
     @classmethod
     def draw(cls, painter):
@@ -300,10 +284,6 @@ class Stage(object):
         # enemy drawing
         enemy_pixmap = QtGui.QPixmap(cls.enemy_pattern)
         painter.drawPixmap(cls.enemy_x, cls.enemy_y, enemy_pixmap)
-
-        # obstacle drawing
-        # obstacle_pixmap = QtGui.QPixmap(cls.obstacle_pattern)
-        # painter.drawPixmap(cls.obstacle_x, cls.obstacle_y, obstacle_pixmap)
 
     @classmethod
     def is_right_end(cls, window_w):
@@ -322,16 +302,6 @@ class Stage(object):
             return
 
         return player_x1 >= cls.enemy_x >= player_x2
-
-    @classmethod
-    def is_obstacle_hit(cls, player_x1, player_x2, player_y):
-        # is possibly hit from above?
-        hit_from_above = player_y >= cls.enemy_y
-
-        if not hit_from_above:
-            return
-
-        return player_x1 >= cls.obstacle_x >= player_x2
 
 
 def main():
