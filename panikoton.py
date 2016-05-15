@@ -1,5 +1,6 @@
 import sys
 from PyQt4 import QtGui, QtCore
+import random
 
 
 # Panikoton class with the game ;)
@@ -40,7 +41,7 @@ class Panikoton(QtGui.QMainWindow):
 
         # initialize player and stage
         self.player = Player
-        self.stage = Stage
+        self.stage = Stage()
 
         self.init_ui()
 
@@ -240,10 +241,15 @@ class Player(object):
 # Stage class with stage attributes and controls
 class Stage(object):
     background = "./assets/stage1_bg.png"
+    background_x = 0
+    background_w = 1000
+
     x = 0
     y = 0
-    w = 1000  # width of the bg
+    w = 2000  # width of the bg
     h = 500  # height of the bg
+
+    distance = 0
 
     ground_w = w
     ground_h = 50
@@ -254,26 +260,47 @@ class Stage(object):
 
     enemy_w = 25
     enemy_h = 25
-    enemy_x = 410
-    enemy_y = h - ground_h - enemy_h
+    enemies_x_factor = 0
+    base_enemy_y = h - ground_h - enemy_h
     enemy_pattern = "./assets/enemy.png"
+
+    enemies = []
+    current_enemy_index = 0
 
     move_size = 20
 
     def __init__(self):
         self.move_size = 10
+        self.create_enemies()
+        self.current_enemy_index = 0
+
+    @classmethod
+    def create_enemies(cls):
+        enemies_n = 10
+        enemy_d = 180
+
+        for i in range(5, enemies_n):
+            cls.enemies.append({"x": enemy_d * i, "y": cls.base_enemy_y - random.randint(0, 20)})
 
     @classmethod
     def move_forward(cls):
+        cls.distance += cls.move_size
+
         # adjust background and all elements on the stage
         cls.x -= cls.move_size
-        cls.enemy_x -= cls.move_size
+        cls.enemies_x_factor -= cls.move_size
         cls.ground_x -= cls.move_size
+        cls.background_x -= cls.move_size
+
+        # set current enemy
+        if cls.distance >= cls.enemies[cls.current_enemy_index]["x"] and cls.current_enemy_index < len(cls.enemies):
+            cls.current_enemy_index += 1
+        print(cls.current_enemy_index, cls.enemies[cls.current_enemy_index])
 
     @classmethod
     def draw(cls, painter):
         pixmap = QtGui.QPixmap(cls.background)
-        painter.drawPixmap(cls.x, cls.y, pixmap)
+        painter.drawPixmap(cls.background_x, cls.y, pixmap)
 
         # ground drawing
         painter.setBrush(QtGui.QColor(255, 0, 0))
@@ -283,7 +310,8 @@ class Stage(object):
 
         # enemy drawing
         enemy_pixmap = QtGui.QPixmap(cls.enemy_pattern)
-        painter.drawPixmap(cls.enemy_x, cls.enemy_y, enemy_pixmap)
+        for enemy in cls.enemies:
+            painter.drawPixmap(enemy["x"] + cls.enemies_x_factor, enemy["y"], enemy_pixmap)
 
     @classmethod
     def is_right_end(cls, window_w):
@@ -296,12 +324,14 @@ class Stage(object):
     @classmethod
     def is_enemy_hit(cls, player_x1, player_x2, player_y):
         # is possibly hit from above?
-        hit_from_above = player_y >= cls.enemy_y
+        hit_from_above = player_y >= cls.enemies[cls.current_enemy_index]["y"]
 
         if not hit_from_above:
-            return
+            return False
 
-        return player_x1 >= cls.enemy_x >= player_x2
+        print(player_x1, cls.enemies[cls.current_enemy_index]["x"] + cls.enemies_x_factor, player_x2)
+
+        return player_x1 >= cls.enemies[cls.current_enemy_index]["x"] + cls.enemies_x_factor >= player_x2
 
 
 def main():
