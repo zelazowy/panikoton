@@ -75,6 +75,10 @@ class Panikoton(QtGui.QMainWindow):
     def keyPressEvent(self, e):
         key = e.key()
 
+        # check allowed keys (for now it's only Z)
+        if key != QtCore.Qt.Key_Z:
+            return
+
         # sets state of the key to PRESSED
         self.pressed_keys[key] = self.KEY_PRESSED
 
@@ -162,9 +166,17 @@ class Stage(object):
     ground_pattern_w = 50
     ground_pattern = "./assets/platform-bg.png"
 
+    move_size = 10
     move_index = 0
     move_intervals = [-25, 0, 25]
 
+    landscape = []
+
+    def __init__(self):
+        self.draw_landscape()
+        t = 0
+
+    @classmethod
     def draw(cls, painter):
         cls.move()
 
@@ -173,10 +185,89 @@ class Stage(object):
         for i in range(0, int(WINDOW_W / cls.ground_pattern_w) + 1):
             painter.drawPixmap(cls.ground_x + i * 50, cls.ground_y, bg_pixmap)
 
+        for element in cls.landscape:
+            pixmap = QtGui.QPixmap(element["src"])
+            painter.drawPixmap(element["x"], element["y"], pixmap)
+
+    @classmethod
+    def draw_landscape(cls):
+        for i in range(0, 5):
+            cls.landscape.append(Landscape.get_cloud())
+
+        for i in range(0, 5):
+            cls.landscape.append(Landscape.get_tree())
+
     @classmethod
     def move(cls):
         cls.move_index += 1
         cls.ground_x -= cls.move_intervals[cls.move_index % len(cls.move_intervals)]
+
+        missing_elements = []
+        for i, element in enumerate(cls.landscape):
+            element["x"] -= cls.move_size
+
+            if element["x"] + element["w"] <= 0:
+                del cls.landscape[i]
+                missing_elements.append(element["type"])
+
+        for element in missing_elements:
+            if element == "cloud":
+                cls.landscape.append(Landscape.add_cloud())
+            elif element == "tree":
+                cls.landscape.append(Landscape.add_tree())
+
+
+class Landscape(object):
+    cloud = {
+        "type": "cloud",
+        "w": 50,
+        "h": 50,
+        "src": "./assets/cloud.png",
+        "y": 0,
+        "x": 0,
+        "max_y": WINDOW_H - 100,
+        "max_x": WINDOW_W - 100
+    }
+
+    tree = {
+        "type": "tree",
+        "w": 50,
+        "h": 100,
+        "src": "./assets/tree.png",
+        "y": WINDOW_H - 150,
+        "x": 0,
+        "max_x": WINDOW_W - 100
+    }
+
+    @classmethod
+    def get_cloud(cls):
+        cloud = cls.cloud.copy()
+        cloud["y"] = random.randint(0, cloud["max_y"])
+        cloud["x"] = random.randint(0, cloud["max_x"])
+
+        return cloud
+
+    @classmethod
+    def add_cloud(cls):
+        cloud = cls.cloud.copy()
+        cloud["y"] = random.randint(0, cloud["max_y"])
+        cloud["x"] = WINDOW_W
+
+        return cloud
+
+    @classmethod
+    def get_tree(cls):
+        tree = cls.tree.copy()
+        tree["x"] = random.randint(0, tree["max_x"])
+
+        return tree
+
+    @classmethod
+    def add_tree(cls):
+        tree = cls.tree.copy()
+        tree["x"] = WINDOW_W
+
+        return tree
 
 
 def main():
