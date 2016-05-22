@@ -7,6 +7,7 @@ import random
 WINDOW_W = 500
 WINDOW_H = 500
 
+
 # Panikoton class with the game ;)
 class Panikoton(QtGui.QMainWindow):
     TIMER_TICK = 80
@@ -172,6 +173,8 @@ class Stage(object):
 
     landscape = []
 
+    enemies = []
+
     def __init__(self):
         self.draw_landscape()
         t = 0
@@ -189,6 +192,10 @@ class Stage(object):
             pixmap = QtGui.QPixmap(element["src"])
             painter.drawPixmap(element["x"], element["y"], pixmap)
 
+        for enemy in cls.enemies:
+            pixmap = QtGui.QPixmap(enemy["src"])
+            painter.drawPixmap(enemy["x"], enemy["y"], pixmap)
+
     @classmethod
     def draw_landscape(cls):
         for i in range(0, 5):
@@ -204,17 +211,39 @@ class Stage(object):
 
         missing_elements = []
         for i, element in enumerate(cls.landscape):
-            element["x"] -= cls.move_size
+            element["x"] -= element["v"]
 
             if element["x"] + element["w"] <= 0:
                 del cls.landscape[i]
-                missing_elements.append(element["type"])
+
+                # don't add missing element with probability = 20%
+                if 2 > random.randint(0, 10):
+                    missing_elements.append(element["type"])
 
         for element in missing_elements:
             if element == "cloud":
                 cls.landscape.append(Landscape.add_cloud())
             elif element == "tree":
                 cls.landscape.append(Landscape.add_tree())
+
+        # randomly create new landscape element with specific chances if there is less than 150% initial elements in landscape
+        if 15 > len(cls.landscape):
+            if 1 > random.randint(0, 10):
+                cls.landscape.append(Landscape.add_cloud())
+            if 1 > random.randint(0, 10):
+                cls.landscape.append(Landscape.add_tree())
+
+        # enemies
+        for i, enemy in enumerate(cls.enemies):
+            enemy["x"] -= enemy["v"]
+
+            if enemy["x"] + enemy["w"] <= 0:
+                del cls.enemies[i]
+
+        # randomly create enemy but no more than 2 are allowed at the time!
+        if 2 > len(cls.enemies):
+            if 2 > random.randint(0, 10):
+                cls.enemies.append(Enemy.add_hankey())
 
 
 class Landscape(object):
@@ -225,8 +254,10 @@ class Landscape(object):
         "src": "./assets/cloud.png",
         "y": 0,
         "x": 0,
-        "max_y": WINDOW_H - 100,
-        "max_x": WINDOW_W - 100
+        "max_y": WINDOW_H - 200,
+        "max_x": WINDOW_W - 100,
+        "max_v": 4,
+        "v": 0
     }
 
     tree = {
@@ -236,7 +267,9 @@ class Landscape(object):
         "src": "./assets/tree.png",
         "y": WINDOW_H - 150,
         "x": 0,
-        "max_x": WINDOW_W - 100
+        "max_x": WINDOW_W - 50,
+        "max_v": 10,
+        "v": 0
     }
 
     @classmethod
@@ -244,6 +277,7 @@ class Landscape(object):
         cloud = cls.cloud.copy()
         cloud["y"] = random.randint(0, cloud["max_y"])
         cloud["x"] = random.randint(0, cloud["max_x"])
+        cloud["v"] = random.randint(1, cloud["max_v"])
 
         return cloud
 
@@ -252,6 +286,7 @@ class Landscape(object):
         cloud = cls.cloud.copy()
         cloud["y"] = random.randint(0, cloud["max_y"])
         cloud["x"] = WINDOW_W
+        cloud["v"] = random.randint(1, cloud["max_v"])
 
         return cloud
 
@@ -259,6 +294,7 @@ class Landscape(object):
     def get_tree(cls):
         tree = cls.tree.copy()
         tree["x"] = random.randint(0, tree["max_x"])
+        tree["v"] = random.randint(tree["max_v"] - 2, tree["max_v"])
 
         return tree
 
@@ -266,8 +302,30 @@ class Landscape(object):
     def add_tree(cls):
         tree = cls.tree.copy()
         tree["x"] = WINDOW_W
+        tree["v"] = random.randint(tree["max_v"] - 2, tree["max_v"])
 
         return tree
+
+
+class Enemy(object):
+    hankey = {
+        "type": "hankey",
+        "w": 30,
+        "h": 30,
+        "src": "./assets/hankey.png",
+        "y": WINDOW_H - 80,
+        "x": WINDOW_W,
+        "min_v": 15,
+        "max_v": 20,
+        "v": 0
+    }
+
+    @classmethod
+    def add_hankey(cls):
+        hankey = cls.hankey.copy()
+        hankey["v"] = random.randint(hankey["min_v"], hankey["max_v"])
+
+        return hankey
 
 
 def main():
