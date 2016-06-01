@@ -24,6 +24,7 @@ class Panikoton(QtGui.QMainWindow):
     tick_action = None
 
     timer = None
+    score = 0
 
     # list contains available keys in the game and its press states
     pressed_keys = {
@@ -35,18 +36,22 @@ class Panikoton(QtGui.QMainWindow):
     def __init__(self):
         super(Panikoton, self).__init__()
 
+        self.create_game()
+
+    def create_game(self):
         # initialize internal values
         self.init_key_actions()
 
         # initialize player and stage
-        self.player = Player
-        self.stage = Stage()
+        self.player = Player()
+        self.stage = Stage(self.player, self)
 
         self.init_ui()
 
         self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.key_action)
+        self.timer.timeout.connect(self.tick)
         self.timer.start(self.TIMER_TICK)
+
 
     # prepare and display main window
     def init_ui(self):
@@ -71,6 +76,7 @@ class Panikoton(QtGui.QMainWindow):
 
         self.stage.draw(painter)
         self.player.draw(painter)
+        self.draw_score(painter)
 
     # adds pressed key to the set
     def keyPressEvent(self, e):
@@ -92,7 +98,13 @@ class Panikoton(QtGui.QMainWindow):
 
     # method called in every Timer tick
     # calls methods for keys pressed at the moment
-    def key_action(self):
+    def tick(self):
+        if self.stage.game_over:
+            self.game_over()
+            return
+
+        self.score += 5
+
         for key, is_pressed in self.pressed_keys.items():
             if self.KEY_PRESSED == is_pressed:
                 action = self.key_actions[key]
@@ -104,8 +116,17 @@ class Panikoton(QtGui.QMainWindow):
 
         self.update()
 
+    def draw_score(self, painter):
+        painter.setPen(QtGui.QColor(0, 0, 0))
+        painter.setFont(QtGui.QFont("Arial", 20))
+        painter.drawText(0, 0, WINDOW_W, WINDOW_H, QtCore.Qt.AlignRight + QtCore.Qt.AlignTop, str(self.score))
+
     def player_jump(self):
         return self.player.jump()
+
+    def game_over(self):
+        self.timer.stop()
+        self.update()
 
 
 # Player class with player attributes and controls
@@ -114,20 +135,14 @@ class Player(object):
     w = 80
     x = 50
     y = 450 - h  # stage_h - player h
-    is_centered = True
 
     img_pattern = "./assets/player/cat{0}.png"
     player_img = "./assets/player/cat0.png"
     player_imgs = [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 7, 8]
 
-    move_size = 20
     jump_index = 0
     jump_started = False
     jump_run = [-20, -15, -10, -5, -2, 0, 2, 5, 10, 15, 20]
-
-    @classmethod
-    def move_forward(cls):
-        cls.x += cls.move_size
 
     @classmethod
     def draw(cls, painter):
@@ -175,13 +190,26 @@ class Stage(object):
 
     enemies = []
 
-    def __init__(self):
-        self.draw_landscape()
-        t = 0
+    player = None
+
+    panikoton = None
+
+    game_over = False
+
+    @classmethod
+    def __init__(cls, player, panikoton):
+        cls.draw_landscape()
+        cls.player = player
+        cls.panikoton = panikoton
 
     @classmethod
     def draw(cls, painter):
-        cls.move()
+        if cls.game_over:
+            painter.setPen(QtGui.QColor(255, 0, 0))
+            painter.setFont(QtGui.QFont("Arial", 20))
+            painter.drawText(0, 0, WINDOW_W, WINDOW_H, QtCore.Qt.AlignCenter, "Game over!")
+        else:
+            cls.move()
 
         # ground drawing
         bg_pixmap = QtGui.QPixmap(cls.ground_pattern)
@@ -204,6 +232,9 @@ class Stage(object):
         for i in range(0, 5):
             cls.landscape.append(Landscape.get_tree())
 
+        for i in range(0, 5):
+            cls.landscape.append(Landscape.get_far_tree())
+
     @classmethod
     def move(cls):
         cls.move_index += 1
@@ -225,13 +256,17 @@ class Stage(object):
                 cls.landscape.append(Landscape.add_cloud())
             elif element == "tree":
                 cls.landscape.append(Landscape.add_tree())
+            elif element == "far_tree":
+                cls.landscape.append(Landscape.add_far_tree())
 
         # randomly create new landscape element with specific chances if there is less than 150% initial elements in landscape
         if 15 > len(cls.landscape):
             if 1 > random.randint(0, 10):
                 cls.landscape.append(Landscape.add_cloud())
-            if 1 > random.randint(0, 10):
+            elif 1 > random.randint(0, 10):
                 cls.landscape.append(Landscape.add_tree())
+            elif 1 > random.randint(0, 10):
+                cls.landscape.append(Landscape.add_far_tree())
 
         # enemies
         for i, enemy in enumerate(cls.enemies):
@@ -240,10 +275,25 @@ class Stage(object):
             if enemy["x"] + enemy["w"] <= 0:
                 del cls.enemies[i]
 
-        # randomly create enemy but no more than 2 are allowed at the time!
-        if 2 > len(cls.enemies):
+            cls.check_enemy_hit(enemy)
+
+        # randomly create enemy but no more than n are allowed at the time!
+        if 1 > len(cls.enemies):
             if 2 > random.randint(0, 10):
                 cls.enemies.append(Enemy.add_hankey())
+            elif 2 > random.randint(0, 10):
+                cls.enemies.append(Enemy.add_shoe())
+
+    @classmethod
+    def check_enemy_hit(cls, enemy):
+        hit_from_above = cls.player.y + cls.player.h >= enemy["y"]
+
+        hit_from_front = cls.player.x + cls.player.w >= enemy["x"]
+
+        is_behind = cls.player.x > enemy["x"]
+
+        if hit_from_above and hit_from_front and not is_behind:
+            cls.game_over = True
 
 
 class Landscape(object):
@@ -269,6 +319,18 @@ class Landscape(object):
         "x": 0,
         "max_x": WINDOW_W - 50,
         "max_v": 10,
+        "v": 0
+    }
+
+    far_tree = {
+        "type": "far_tree",
+        "w": 43,
+        "h": 85,
+        "src": "./assets/far_tree.png",
+        "y": WINDOW_H - 135,
+        "x": 0,
+        "max_x": WINDOW_W - 43,
+        "max_v": 6,
         "v": 0
     }
 
@@ -306,6 +368,22 @@ class Landscape(object):
 
         return tree
 
+    @classmethod
+    def get_far_tree(cls):
+        far_tree = cls.far_tree.copy()
+        far_tree["x"] = random.randint(0, far_tree["max_x"])
+        far_tree["v"] = random.randint(far_tree["max_v"] - 2, far_tree["max_v"])
+
+        return far_tree
+
+    @classmethod
+    def add_far_tree(cls):
+        far_tree = cls.far_tree.copy()
+        far_tree["x"] = WINDOW_W
+        far_tree["v"] = random.randint(far_tree["max_v"] - 2, far_tree["max_v"])
+
+        return far_tree
+
 
 class Enemy(object):
     hankey = {
@@ -316,7 +394,19 @@ class Enemy(object):
         "y": WINDOW_H - 80,
         "x": WINDOW_W,
         "min_v": 15,
-        "max_v": 20,
+        "max_v": 25,
+        "v": 0
+    }
+
+    shoe = {
+        "type": "shoe",
+        "w": 40,
+        "h": 40,
+        "src": "./assets/shoe.png",
+        "y": WINDOW_H - 90,
+        "x": WINDOW_W,
+        "min_v": 20,
+        "max_v": 25,
         "v": 0
     }
 
@@ -326,6 +416,13 @@ class Enemy(object):
         hankey["v"] = random.randint(hankey["min_v"], hankey["max_v"])
 
         return hankey
+
+    @classmethod
+    def add_shoe(cls):
+        shoe = cls.shoe.copy()
+        shoe["v"] = random.randint(shoe["min_v"], shoe["max_v"])
+
+        return shoe
 
 
 def main():
